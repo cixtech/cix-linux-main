@@ -17,14 +17,15 @@ This repository provides a patch set for the mainline version of the Linux kerne
 # Support status
 | hardware components | Status | Notes |
 | --- | --- | --- |
-| DP Display | DP alt mode works | USB C port near the power button has issues when rendering videos decoded by vpu via GL |
-| HDMI Display | TODO |
+| Typec DP Display | DP alt mode works | USB C port near the power button has issues when rendering videos decoded by vpu via GL(Tested with clapper playing fullscreen video). |
+| DP Display | Supported | DP has issues when rendering videos decoded by vpu via GL(Tested with clapper playing fullscreen video). |
+| HDMI Display | Supported | HDMI has issues when rendering videos decoded by vpu via GL(Tested with clapper playing fullscreen video). |
 | DP Sound | TODO |
 | Headphone jack | Supported |
 | GPU | Supported |
-| VPU | Supported via external DKMS |
-| NPU | Supported via external DKMS |
-| USB | Works without patches |
+| VPU | Supported via [external DKMS](https://github.com/cixtech/cix_opensource__vpu_driver/tree/cix_mainline_dev) |
+| NPU | Supported via [external DKMS](https://github.com/cixtech/cix_opensource__npu_driver/tree/cix_mainline_dev) |
+| USB | Supported |
 | PCIE | Works without patches |
 
 # Build kernel

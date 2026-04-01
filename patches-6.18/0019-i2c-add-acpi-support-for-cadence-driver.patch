@@ -4,8 +4,8 @@ Date: Tue, 17 Mar 2026 17:29:25 +0800
 Subject: i2c: add acpi support for cadence driver
 
 ---
- drivers/i2c/busses/i2c-cadence.c | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ drivers/i2c/busses/i2c-cadence.c | 11 ++++++++++
+ 1 file changed, 11 insertions(+)
 
 diff --git a/drivers/i2c/busses/i2c-cadence.c b/drivers/i2c/busses/i2c-cadence.c
 index 111111111111..222222222222 100644
@@ -34,7 +34,15 @@ index 111111111111..222222222222 100644
  /**
   * cdns_i2c_detect_transfer_size - Detect the maximum transfer size supported
   * @id: Device private data structure
-@@ -1639,6 +1648,7 @@ static struct platform_driver cdns_i2c_drv = {
+@@ -1536,6 +1545,7 @@ static int cdns_i2c_probe(struct platform_device *pdev)
+ 	id->adap.retries = 3;		/* Default retry value. */
+ 	id->adap.algo_data = id;
+ 	id->adap.dev.parent = &pdev->dev;
++	device_set_node(&id->adap.dev, dev_fwnode(&pdev->dev));
+ 	init_completion(&id->xfer_done);
+ 	snprintf(id->adap.name, sizeof(id->adap.name),
+ 		 "Cadence I2C at %08lx", (unsigned long)r_mem->start);
+@@ -1639,6 +1649,7 @@ static struct platform_driver cdns_i2c_drv = {
  	.driver = {
  		.name  = DRIVER_NAME,
  		.of_match_table = cdns_i2c_of_match,
