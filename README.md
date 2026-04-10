@@ -12,7 +12,7 @@ This repository provides a patch set for the mainline version of the Linux kerne
 - Orion O6 is tested with [edk2 firmware 1.2.1](https://github.com/radxa-pkg/edk2-cix/releases/tag/1.2.1)
 - There are two necessary commits if you are using edk2 source code based on 2025Q4 release from other vendor: [Add reg-io-width property for SCMI shmem](https://github.com/radxa/edk2-platforms/commit/e131517238e068560adaffefff4b8646cce616fe), [Platform/Radxa: add SCMI toggle](https://github.com/radxa/edk2-platforms/commit/a35d5083e8f20616538539c608e5a0db340e3b8b)
 - `Device Manager -> O/S Hardware Description Selection` has to be set to `ACPI`
-- The following option has to be enabled in UEFI: `Device Manager -> Platform Configuration -> Compliance Configuratuin -> Enable ACPI SCMI`
+- The following option has to be enabled in UEFI: `Device Manager -> Platform Configuration -> Compliance Configuration -> Enable ACPI SCMI`
 
 # Support status
 | hardware components | Status | Notes |
