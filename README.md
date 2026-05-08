@@ -10,7 +10,7 @@ This repository provides a patch set for the mainline version of the Linux kerne
 
 # Hardware/Firmware requirements
 - Orion O6 is tested with [edk2 firmware 1.1.0-2](https://github.com/radxa-pkg/edk2-cix/releases/tag/1.1.0-2)
-- Firmware from other vendors baed on 2025Q3 SDK release should also work.
+- Firmware from other vendors based on 2025Q3 SDK release should also work.
 - `Device Manager -> O/S Hardware Description Selection` has to be set to `ACPI`
 
 # Support status
