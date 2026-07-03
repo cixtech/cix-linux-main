@@ -5,15 +5,15 @@ Subject: pinctrl: sky1: add acpi support
 
 ---
  drivers/pinctrl/Makefile                |   1 +
- drivers/pinctrl/cix/pinctrl-sky1-base.c | 973 ++++++----
- drivers/pinctrl/cix/pinctrl-sky1.c      | 912 ++++-----
+ drivers/pinctrl/cix/pinctrl-sky1-base.c | 972 ++++++----
+ drivers/pinctrl/cix/pinctrl-sky1.c      | 912 +++++----
  drivers/pinctrl/cix/pinctrl-sky1.h      |  62 +-
  drivers/pinctrl/core.c                  |  26 +-
  drivers/pinctrl/core.h                  |   3 +
  drivers/pinctrl/pinctrl-acpi.c          | 774 ++++++++
  drivers/pinctrl/pinctrl-acpi.h          | 105 +
  include/linux/pinctrl/pinctrl.h         |  17 +
- 9 files changed, 1983 insertions(+), 890 deletions(-)
+ 9 files changed, 1982 insertions(+), 890 deletions(-)
 
 diff --git a/drivers/pinctrl/Makefile b/drivers/pinctrl/Makefile
 index 111111111111..222222222222 100644
@@ -31,7 +31,7 @@ diff --git a/drivers/pinctrl/cix/pinctrl-sky1-base.c b/drivers/pinctrl/cix/pinct
 index 111111111111..222222222222 100644
 --- a/drivers/pinctrl/cix/pinctrl-sky1-base.c
 +++ b/drivers/pinctrl/cix/pinctrl-sky1-base.c
-@@ -1,503 +1,712 @@
+@@ -1,503 +1,711 @@
  // SPDX-License-Identifier: GPL-2.0+
  //
  // Author: Jerry Zhu <Jerry.Zhu@cixtech.com>
@@ -406,7 +406,9 @@ index 111111111111..222222222222 100644
  	}
  
 -	err = 0;
--
++	*map = new_map;
++	*num_maps_out = num_maps;
+ 
 -exit:
 -	kfree(configs);
 -	return err;
@@ -431,9 +433,7 @@ index 111111111111..222222222222 100644
 -			return ret;
 -		}
 -	}
-+	*map = new_map;
-+	*num_maps_out = num_maps;
- 
+-
 -	return 0;
 +	return ret;
 +out_free:
@@ -451,10 +451,7 @@ index 111111111111..222222222222 100644
  }
  
 -static int sky1_pctrl_get_groups_count(struct pinctrl_dev *pctldev)
-+static void sky1_acpi_free_map(struct pinctrl_dev *pctldev,
-+			       struct pinctrl_map *map,
-+			       unsigned int num_maps)
- {
+-{
 -	struct sky1_pinctrl *spctl = pinctrl_dev_get_drvdata(pctldev);
 -
 -	return spctl->info->npins;
@@ -483,7 +480,10 @@ index 111111111111..222222222222 100644
 -
 -static void sky1_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 -		   unsigned int offset)
--{
++static void sky1_acpi_free_map(struct pinctrl_dev *pctldev,
++			       struct pinctrl_map *map,
++			       unsigned int num_maps)
+ {
 -	seq_printf(s, "%s", dev_name(pctldev->dev));
 +	kfree(map);
  }
@@ -637,18 +637,18 @@ index 111111111111..222222222222 100644
 -	const struct sky1_pinctrl_soc_info *info = spctl->info;
 +	u32 config;
 +	u32 *pin_reg;
- 
--	*groups = spctl->grp_names;
--	*num_groups = info->npins;
++
 +	if (spctl->pin_regs[pin_id] == -1) {
 +		seq_puts(s, "N/A");
 +		return;
 +	}
  
--	return 0;
+-	*groups = spctl->grp_names;
+-	*num_groups = info->npins;
 +	pin_reg = spctl->base + spctl->pin_regs[pin_id];
 +	config = readl(pin_reg) & SKY1_CONF_MASK;
-+
+ 
+-	return 0;
 +	seq_printf(s, "0x%x", config);
  }
  
@@ -660,7 +660,6 @@ index 111111111111..222222222222 100644
 +static void sky1_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 +					  struct seq_file *s, unsigned int group)
 +{
-+	struct sky1_pinctrl *spctl = pinctrl_dev_get_drvdata(pctldev);
 +	struct group_desc *grp;
 +	unsigned long config;
 +	const char *name;
@@ -1096,7 +1095,7 @@ index 111111111111..222222222222 100644
  	}
  
  	return 0;
-@@ -508,7 +717,6 @@ int sky1_base_pinctrl_probe(struct platform_device *pdev,
+@@ -508,7 +716,6 @@ int sky1_base_pinctrl_probe(struct platform_device *pdev,
  {
  	struct pinctrl_desc *sky1_pinctrl_desc;
  	struct sky1_pinctrl *spctl;
@@ -1104,7 +1103,7 @@ index 111111111111..222222222222 100644
  	int ret, i;
  
  	if (!info || !info->pins || !info->npins) {
-@@ -521,8 +729,15 @@ int sky1_base_pinctrl_probe(struct platform_device *pdev,
+@@ -521,8 +728,15 @@ int sky1_base_pinctrl_probe(struct platform_device *pdev,
  	if (!spctl)
  		return -ENOMEM;
  
@@ -1122,7 +1121,7 @@ index 111111111111..222222222222 100644
  
  	spctl->base = devm_platform_ioremap_resource(pdev, 0);
  	if (IS_ERR(spctl->base))
-@@ -533,25 +748,19 @@ int sky1_base_pinctrl_probe(struct platform_device *pdev,
+@@ -533,25 +747,19 @@ int sky1_base_pinctrl_probe(struct platform_device *pdev,
  	if (!sky1_pinctrl_desc)
  		return -ENOMEM;
  
@@ -1154,7 +1153,7 @@ index 111111111111..222222222222 100644
  	ret = devm_pinctrl_register_and_init(&pdev->dev,
  					     sky1_pinctrl_desc, spctl,
  					     &spctl->pctl);
-@@ -560,22 +769,18 @@ int sky1_base_pinctrl_probe(struct platform_device *pdev,
+@@ -560,22 +768,18 @@ int sky1_base_pinctrl_probe(struct platform_device *pdev,
  		return ret;
  	}
  
@@ -1188,7 +1187,7 @@ index 111111111111..222222222222 100644
  
  	return pinctrl_enable(spctl->pctl);
  }
-@@ -583,5 +788,5 @@ EXPORT_SYMBOL_GPL(sky1_base_pinctrl_probe);
+@@ -583,5 +787,5 @@ EXPORT_SYMBOL_GPL(sky1_base_pinctrl_probe);
  
  
  MODULE_AUTHOR("Jerry Zhu <Jerry.Zhu@cixtech.com>");

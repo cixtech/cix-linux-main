@@ -490,7 +490,7 @@ index 111111111111..222222222222 100644
  /**
   * genpd_get_from_provider() - Look-up PM domain
   * @genpdspec: OF phandle args to use for look-up
-@@ -3250,6 +3387,86 @@ static int __genpd_dev_pm_attach(struct device *dev, struct device *base_dev,
+@@ -3258,6 +3395,86 @@ static int __genpd_dev_pm_attach(struct device *dev, struct device *base_dev,
  	return ret;
  }
  
@@ -577,7 +577,7 @@ index 111111111111..222222222222 100644
  /**
   * genpd_dev_pm_attach - Attach a device to its PM domain using DT.
   * @dev: Device to attach.
-@@ -3301,16 +3518,32 @@ struct device *genpd_dev_pm_attach_by_id(struct device *dev,
+@@ -3309,16 +3526,32 @@ struct device *genpd_dev_pm_attach_by_id(struct device *dev,
  {
  	struct device *virt_dev;
  	int num_domains;
@@ -617,7 +617,7 @@ index 111111111111..222222222222 100644
  
  	if (!genpd_bus_registered)
  		return ERR_PTR(-ENODEV);
-@@ -3323,7 +3556,8 @@ struct device *genpd_dev_pm_attach_by_id(struct device *dev,
+@@ -3331,7 +3564,8 @@ struct device *genpd_dev_pm_attach_by_id(struct device *dev,
  	dev_set_name(virt_dev, "genpd:%u:%s", index, dev_name(dev));
  	virt_dev->bus = &genpd_bus_type;
  	virt_dev->release = genpd_release_dev;
@@ -627,7 +627,7 @@ index 111111111111..222222222222 100644
  
  	ret = device_register(virt_dev);
  	if (ret) {
-@@ -3332,7 +3566,12 @@ struct device *genpd_dev_pm_attach_by_id(struct device *dev,
+@@ -3340,7 +3574,12 @@ struct device *genpd_dev_pm_attach_by_id(struct device *dev,
  	}
  
  	/* Try to attach the device to the PM domain at the specified index. */
@@ -641,7 +641,7 @@ index 111111111111..222222222222 100644
  	if (ret < 1) {
  		device_unregister(virt_dev);
  		return ret ? ERR_PTR(ret) : NULL;
-@@ -3350,19 +3589,24 @@ EXPORT_SYMBOL_GPL(genpd_dev_pm_attach_by_id);
+@@ -3358,19 +3597,24 @@ EXPORT_SYMBOL_GPL(genpd_dev_pm_attach_by_id);
   * @dev: The device used to lookup the PM domain.
   * @name: The name of the PM domain.
   *

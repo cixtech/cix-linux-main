@@ -5,13 +5,13 @@ Subject: regulator: add acpi support
 
 ---
  drivers/regulator/Makefile                 |   3 +-
- drivers/regulator/core.c                   |  91 +-
+ drivers/regulator/core.c                   |  92 +-
  drivers/regulator/fixed.c                  |  49 +
  drivers/regulator/fwnode_regulator.c       | 737 ++++++++++
  drivers/regulator/internal.h               |  10 +
  include/linux/regulator/driver.h           |   7 +
  include/linux/regulator/fwnode_regulator.h |  23 +
- 7 files changed, 910 insertions(+), 10 deletions(-)
+ 7 files changed, 911 insertions(+), 10 deletions(-)
 
 diff --git a/drivers/regulator/Makefile b/drivers/regulator/Makefile
 index 111111111111..222222222222 100644
@@ -147,22 +147,23 @@ index 111111111111..222222222222 100644
  	else
  		n_phandles = of_get_n_coupled(rdev);
  
-@@ -5931,8 +5997,12 @@ static int regulator_init_coupling(struct regulator_dev *rdev)
+@@ -5931,8 +5997,13 @@ static int regulator_init_coupling(struct regulator_dev *rdev)
  	if (n_phandles == 0)
  		return 0;
  
 -	if (!of_check_coupling_data(rdev))
 -		return -EPERM;
-+	if (has_acpi_companion(&rdev->dev))
++	if (has_acpi_companion(&rdev->dev)) {
 +		if (!fwnode_check_coupling_data(rdev))
 +			return -EPERM;
-+	else
++	} else {
 +		if (!of_check_coupling_data(rdev))
 +			return -EPERM;
++	}
  
  	mutex_lock(&regulator_list_mutex);
  	rdev->coupling_desc.coupler = regulator_find_coupler(rdev);
-@@ -6058,8 +6128,12 @@ regulator_register(struct device *dev,
+@@ -6058,8 +6129,12 @@ regulator_register(struct device *dev,
  	 * DT may override the config->init_data provided if the platform
  	 * needs to do so. If so, config->init_data is completely ignored.
  	 */
@@ -177,7 +178,7 @@ index 111111111111..222222222222 100644
  
  	/*
  	 * Sometimes not all resources are probed already so we need to take
-@@ -6084,6 +6158,7 @@ regulator_register(struct device *dev,
+@@ -6084,6 +6159,7 @@ regulator_register(struct device *dev,
  	if (!init_data) {
  		init_data = config->init_data;
  		rdev->dev.of_node = of_node_get(config->of_node);
@@ -367,7 +368,7 @@ index 000000000000..111111111111
 +
 +	n_phandles = fwnode_count_reference_with_args(np, "regulator-coupled-with",
 +						NULL);
-+	if (IS_ERR(n_phandles))
++	if (n_phandles < 0)
 +		n_phandles = 0;
 +
 +	n_phandles = max(n_phandles, 0);
@@ -991,7 +992,7 @@ index 000000000000..111111111111
 + * return 0 if false
 + * return length of supply name without the -supply
 + */
-+static int is_supply_name(const char *name)
++static int __maybe_unused is_supply_name(const char *name)
 +{
 +	int strs, i;
 +

@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Krzysztof Kozlowski <krzysztof.kozlowski@oss.qualcomm.com>
+Date: Mon, 16 Feb 2026 09:58:40 +0100
+Subject: pinctrl: cix: sky1: Unexport sky1_pinctrl_pm_ops
+
+File-scope 'sky1_pinctrl_pm_ops' is not used outside of this unit (and
+it should not be!), so unexport it and make it static to silence sparse
+warning:
+
+  pinctrl-sky1.c:525:25: warning: symbol 'sky1_pinctrl_pm_ops' was not declared. Should it be static?
+
+Signed-off-by: Krzysztof Kozlowski <krzysztof.kozlowski@oss.qualcomm.com>
+Signed-off-by: Linus Walleij <linusw@kernel.org>
+---
+ drivers/pinctrl/cix/pinctrl-sky1.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/drivers/pinctrl/cix/pinctrl-sky1.c b/drivers/pinctrl/cix/pinctrl-sky1.c
+index 111111111111..222222222222 100644
+--- a/drivers/pinctrl/cix/pinctrl-sky1.c
++++ b/drivers/pinctrl/cix/pinctrl-sky1.c
+@@ -522,11 +522,10 @@ static int __maybe_unused sky1_pinctrl_resume(struct device *dev)
+ 	return pinctrl_force_default(spctl->pctl);
+ }
+ 
+-const struct dev_pm_ops sky1_pinctrl_pm_ops = {
++static const struct dev_pm_ops sky1_pinctrl_pm_ops = {
+ 	SET_LATE_SYSTEM_SLEEP_PM_OPS(sky1_pinctrl_suspend,
+ 					sky1_pinctrl_resume)
+ };
+-EXPORT_SYMBOL_GPL(sky1_pinctrl_pm_ops);
+ 
+ static int sky1_pinctrl_probe(struct platform_device *pdev)
+ {
+-- 
+Cixtech
+

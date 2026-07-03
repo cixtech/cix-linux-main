@@ -12,8 +12,8 @@ Signed-off-by: Jianfeng Liu <Jianfeng.Liu@cixtech.com>
  drivers/firmware/arm_scmi/transports/mailbox.c | 40 +++--
  drivers/firmware/arm_scmi/transports/optee.c   | 17 +-
  drivers/firmware/arm_scmi/transports/smc.c     |  8 +-
- drivers/firmware/arm_scmi/transports/virtio.c  |  2 +-
- 8 files changed, 163 insertions(+), 82 deletions(-)
+ drivers/firmware/arm_scmi/transports/virtio.c  |  4 +-
+ 8 files changed, 164 insertions(+), 83 deletions(-)
 
 diff --git a/drivers/firmware/arm_scmi/bus.c b/drivers/firmware/arm_scmi/bus.c
 index 111111111111..222222222222 100644

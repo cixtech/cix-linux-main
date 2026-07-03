@@ -189,7 +189,7 @@ diff --git a/include/linux/fwnode.h b/include/linux/fwnode.h
 index 111111111111..222222222222 100644
 --- a/include/linux/fwnode.h
 +++ b/include/linux/fwnode.h
-@@ -182,6 +182,9 @@ struct fwnode_operations {
+@@ -183,6 +183,9 @@ struct fwnode_operations {
  	void __iomem *(*iomap)(struct fwnode_handle *fwnode, int index);
  	int (*irq_get)(const struct fwnode_handle *fwnode, unsigned int index);
  	int (*add_links)(struct fwnode_handle *fwnode);

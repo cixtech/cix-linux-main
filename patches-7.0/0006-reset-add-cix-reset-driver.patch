@@ -66,7 +66,7 @@ index 111111111111..222222222222 100644
  /* Protects reset_gpio_lookup_list */
  static DEFINE_MUTEX(reset_gpio_lookup_mutex);
  static LIST_HEAD(reset_gpio_lookup_list);
-@@ -1074,12 +1077,102 @@ __of_reset_control_get(struct device_node *node, const char *id, int index,
+@@ -1073,12 +1076,102 @@ __of_reset_control_get(struct device_node *node, const char *id, int index,
  }
  EXPORT_SYMBOL_GPL(__of_reset_control_get);
  
@@ -170,7 +170,7 @@ index 111111111111..222222222222 100644
  
  	if (WARN_ON(shared && acquired))
  		return ERR_PTR(-EINVAL);
-@@ -1087,7 +1180,7 @@ struct reset_control *__reset_control_get(struct device *dev, const char *id,
+@@ -1086,7 +1179,7 @@ struct reset_control *__reset_control_get(struct device *dev, const char *id,
  	if (dev->of_node)
  		return __of_reset_control_get(dev->of_node, id, index, flags);
  

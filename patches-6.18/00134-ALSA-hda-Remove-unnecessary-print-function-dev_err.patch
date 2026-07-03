@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jiapeng Chong <jiapeng.chong@linux.alibaba.com>
+Date: Fri, 12 Dec 2025 14:24:10 +0800
+Subject: ALSA: hda: Remove unnecessary print function dev_err()
+
+The print function dev_err() is redundant because platform_get_irq()
+already prints an error.
+
+./sound/hda/controllers/cix-ipbloq.c:119:2-9: line 119 is redundant because platform_get_irq() already prints an error.
+
+Reported-by: Abaci Robot <abaci@linux.alibaba.com>
+Closes: https://bugzilla.openanolis.cn/show_bug.cgi?id=28045
+Signed-off-by: Jiapeng Chong <jiapeng.chong@linux.alibaba.com>
+Link: https://patch.msgid.link/20251212062410.3706839-1-jiapeng.chong@linux.alibaba.com
+Signed-off-by: Takashi Iwai <tiwai@suse.de>
+---
+ sound/hda/controllers/cix-ipbloq.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/sound/hda/controllers/cix-ipbloq.c b/sound/hda/controllers/cix-ipbloq.c
+index 111111111111..222222222222 100644
+--- a/sound/hda/controllers/cix-ipbloq.c
++++ b/sound/hda/controllers/cix-ipbloq.c
+@@ -115,10 +115,8 @@ static int cix_ipbloq_hda_init(struct cix_ipbloq_hda *hda,
+ 	bus->addr = res->start;
+ 
+ 	irq_id = platform_get_irq(pdev, 0);
+-	if (irq_id < 0) {
+-		dev_err(hda->dev, "failed to get the irq, err = %d\n", irq_id);
++	if (irq_id < 0)
+ 		return irq_id;
+-	}
+ 
+ 	err = devm_request_irq(hda->dev, irq_id, azx_interrupt,
+ 			       0, KBUILD_MODNAME, chip);
+-- 
+Cixtech
+

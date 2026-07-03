@@ -1,0 +1,62 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Linus Walleij <linus.walleij@linaro.org>
+Date: Tue, 4 Nov 2025 14:01:03 +0100
+Subject: pinctrl: cix: sky1: Provide pin control dummy states
+
+This exports and calls the pinctrl_provide_dummies() function from
+the CIX SKY1 driver.
+
+The reasons are explained in a comment in the commit, in essence the
+two pin controllers need to go through explicit state transitions
+default->sleep->default despite they only handle one single state
+each.
+
+Reviewed-by: Hans Zhang <hans.zhang@cixtech.com>
+Reviewed-by: Fugang Duan <fugang.duan@cixtech.com>
+Signed-off-by: Linus Walleij <linus.walleij@linaro.org>
+---
+ drivers/pinctrl/cix/pinctrl-sky1-base.c | 15 ++++++++++
+ drivers/pinctrl/core.c                  |  1 +
+ 2 files changed, 16 insertions(+)
+
+diff --git a/drivers/pinctrl/cix/pinctrl-sky1-base.c b/drivers/pinctrl/cix/pinctrl-sky1-base.c
+index 111111111111..222222222222 100644
+--- a/drivers/pinctrl/cix/pinctrl-sky1-base.c
++++ b/drivers/pinctrl/cix/pinctrl-sky1-base.c
+@@ -560,6 +560,21 @@ int sky1_base_pinctrl_probe(struct platform_device *pdev,
+ 		return ret;
+ 	}
+ 
++	/*
++	 * The SKY1 SoC has two pin controllers: one for normal working state
++	 * and one for sleep state. Since one controller only has working
++	 * states and the other only sleep states, it will seem to the
++	 * controller is always in the first configured state, so no
++	 * transitions between default->sleep->default are detected and no
++	 * new pin states are applied when we go in and out of sleep state.
++	 *
++	 * To counter this, provide dummies, so that the sleep-only pin
++	 * controller still get some default states, and the working state pin
++	 * controller get some sleep states, so that state transitions occur
++	 * and we re-configure pins for default and sleep states.
++	 */
++	pinctrl_provide_dummies();
++
+ 	dev_dbg(&pdev->dev, "initialized SKY1 pinctrl driver\n");
+ 
+ 	return pinctrl_enable(spctl->pctl);
+diff --git a/drivers/pinctrl/core.c b/drivers/pinctrl/core.c
+index 111111111111..222222222222 100644
+--- a/drivers/pinctrl/core.c
++++ b/drivers/pinctrl/core.c
+@@ -70,6 +70,7 @@ void pinctrl_provide_dummies(void)
+ {
+ 	pinctrl_dummy_state = true;
+ }
++EXPORT_SYMBOL_GPL(pinctrl_provide_dummies);
+ 
+ const char *pinctrl_dev_get_name(struct pinctrl_dev *pctldev)
+ {
+-- 
+Cixtech
+

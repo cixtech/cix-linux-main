@@ -20,7 +20,7 @@ diff --git a/drivers/phy/Kconfig b/drivers/phy/Kconfig
 index 111111111111..222222222222 100644
 --- a/drivers/phy/Kconfig
 +++ b/drivers/phy/Kconfig
-@@ -151,6 +151,7 @@ source "drivers/phy/amlogic/Kconfig"
+@@ -150,6 +150,7 @@ source "drivers/phy/amlogic/Kconfig"
  source "drivers/phy/apple/Kconfig"
  source "drivers/phy/broadcom/Kconfig"
  source "drivers/phy/cadence/Kconfig"

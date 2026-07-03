@@ -10,12 +10,12 @@ Signed-off-by: Jianfeng Liu <Jianfeng.Liu@cixtech.com>
  drivers/gpu/drm/panthor/panthor_device.h  |  41 +-
  drivers/gpu/drm/panthor/panthor_drv.c     |  10 +
  drivers/gpu/drm/panthor/panthor_fw.c      |  10 +-
- drivers/gpu/drm/panthor/panthor_gem.c     |   9 +-
+ drivers/gpu/drm/panthor/panthor_gem.c     |  11 +-
  drivers/gpu/drm/panthor/panthor_gpu.c     |  43 +-
  drivers/gpu/drm/panthor/panthor_hw.c      |  23 +-
  drivers/gpu/drm/panthor/panthor_mmu.c     |  44 +-
  drivers/gpu/drm/panthor/panthor_regs.h    |   5 +
- 10 files changed, 829 insertions(+), 69 deletions(-)
+ 10 files changed, 829 insertions(+), 71 deletions(-)
 
 diff --git a/drivers/gpu/drm/panthor/panthor_devfreq.c b/drivers/gpu/drm/panthor/panthor_devfreq.c
 index 111111111111..222222222222 100644
@@ -1068,7 +1068,16 @@ diff --git a/drivers/gpu/drm/panthor/panthor_gem.c b/drivers/gpu/drm/panthor/pan
 index 111111111111..222222222222 100644
 --- a/drivers/gpu/drm/panthor/panthor_gem.c
 +++ b/drivers/gpu/drm/panthor/panthor_gem.c
-@@ -99,8 +99,12 @@ should_map_wc(struct panthor_gem_object *bo, struct panthor_vm *exclusive_vm)
+@@ -80,8 +80,6 @@ static void panthor_gem_debugfs_bo_init(struct panthor_gem_object *bo) {}
+ static bool
+ should_map_wc(struct panthor_gem_object *bo, struct panthor_vm *exclusive_vm)
+ {
+-	struct panthor_device *ptdev = container_of(bo->base.base.dev, struct panthor_device, base);
+-
+ 	/* We can't do uncached mappings if the device is coherent,
+ 	 * because the zeroing done by the shmem layer at page allocation
+ 	 * time happens on a cached mapping which isn't CPU-flushed (at least
+@@ -99,8 +97,12 @@ should_map_wc(struct panthor_gem_object *bo, struct panthor_vm *exclusive_vm)
  	 * CPU cache maintenance regardless of whether the device is coherent
  	 * or not.
  	 */
@@ -1083,7 +1092,7 @@ index 111111111111..222222222222 100644
  
  	/* Cached mappings are explicitly requested, so no write-combine. */
  	if (bo->flags & DRM_PANTHOR_BO_WB_MMAP)
-@@ -404,6 +408,7 @@ struct drm_gem_object *panthor_gem_create_object(struct drm_device *ddev, size_t
+@@ -404,6 +406,7 @@ struct drm_gem_object *panthor_gem_create_object(struct drm_device *ddev, size_t
  		return ERR_PTR(-ENOMEM);
  
  	obj->base.base.funcs = &panthor_gem_funcs;

@@ -6,8 +6,8 @@ Subject: typec: add rts5453 driver
 ---
  drivers/usb/typec/Kconfig   |  13 +
  drivers/usb/typec/Makefile  |   1 +
- drivers/usb/typec/rts5453.c | 799 ++++++++++
- 3 files changed, 813 insertions(+)
+ drivers/usb/typec/rts5453.c | 800 ++++++++++
+ 3 files changed, 814 insertions(+)
 
 diff --git a/drivers/usb/typec/Kconfig b/drivers/usb/typec/Kconfig
 index 111111111111..222222222222 100644
