@@ -129,12 +129,12 @@ index 111111111111..222222222222 100644
  static void __tag##_dev_free(void *data)				       \
  {									       \
  	struct platform_device *spdev = data;				       \
-@@ -492,7 +493,7 @@ static int __tag##_probe(struct platform_device *pdev)			       \
+@@ -492,7 +493,8 @@ static int __tag##_probe(struct platform_device *pdev)			       \
  	if (!spdev)							       \
  		return -ENOMEM;						       \
  									       \
--	device_set_of_node_from_dev(&spdev->dev, dev);			       \
-+	device_set_node(&spdev->dev, dev->fwnode);			       \
++	spdev->dev.fwnode = dev->fwnode;			            \
+	device_set_of_node_from_dev(&spdev->dev, dev);			       \
  									       \
  	strans.supplier = dev;						       \
  	memcpy(&strans.desc, &(__desc), sizeof(strans.desc));		       \
