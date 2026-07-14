@@ -1070,7 +1070,7 @@ index 000000000000..111111111111
 +	priv->dev = dev;
 +	priv->devtype_data = devtype_data;
 +
-+	priv->rst_noc = devm_reset_control_get_exclusive(dev, NULL);
++	priv->rst_noc = devm_reset_control_get_optional_exclusive(dev, NULL);
 +	if (IS_ERR(priv->rst_noc))
 +		return dev_err_probe(dev, PTR_ERR(priv->rst_noc),
 +				     "failed to get audss noc reset");
