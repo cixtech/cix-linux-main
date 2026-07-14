@@ -1,0 +1,39 @@
+diff --git a/include/drm/drm_plane.h b/include/drm/drm_plane.h
+--- a/include/drm/drm_plane.h
++++ b/include/drm/drm_plane.h
+@@ -940,9 +940,9 @@
+  * drm_plane_mask - find the mask of a registered plane
+  * @plane: plane to find mask for
+  */
+-static inline u32 drm_plane_mask(const struct drm_plane *plane)
++static inline u64 drm_plane_mask(const struct drm_plane *plane)
+ {
+-	return 1 << drm_plane_index(plane);
++	return 1ULL << drm_plane_index(plane);
+ }
+ 
+ struct drm_plane * drm_plane_from_index(struct drm_device *dev, int idx);
+diff --git a/include/drm/drm_crtc.h b/include/drm/drm_crtc.h
+--- a/include/drm/drm_crtc.h
++++ b/include/drm/drm_crtc.h
+@@ -192,7 +192,7 @@
+ 	 * @plane_mask: Bitmask of drm_plane_mask(plane) of planes attached to
+ 	 * this CRTC.
+ 	 */
+-	u32 plane_mask;
++	u64 plane_mask;
+ 
+ 	/**
+ 	 * @connector_mask: Bitmask of drm_connector_mask(connector) of
+diff --git a/drivers/gpu/drm/drm_atomic.c b/drivers/gpu/drm/drm_atomic.c
+--- a/drivers/gpu/drm/drm_atomic.c
++++ b/drivers/gpu/drm/drm_atomic.c
+@@ -471,7 +471,7 @@
+ 	drm_printf(p, "\tactive_changed=%d\n", state->active_changed);
+ 	drm_printf(p, "\tconnectors_changed=%d\n", state->connectors_changed);
+ 	drm_printf(p, "\tcolor_mgmt_changed=%d\n", state->color_mgmt_changed);
+-	drm_printf(p, "\tplane_mask=%x\n", state->plane_mask);
++	drm_printf(p, "\tplane_mask=%llx\n", state->plane_mask);
+ 	drm_printf(p, "\tconnector_mask=%x\n", state->connector_mask);
+ 	drm_printf(p, "\tencoder_mask=%x\n", state->encoder_mask);
+ 	drm_printf(p, "\tmode: " DRM_MODE_FMT "\n", DRM_MODE_ARG(&state->mode));
