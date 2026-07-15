@@ -1203,7 +1203,7 @@ diff --git a/drivers/pinctrl/cix/pinctrl-sky1.c b/drivers/pinctrl/cix/pinctrl-sk
 index 111111111111..222222222222 100644
 --- a/drivers/pinctrl/cix/pinctrl-sky1.c
 +++ b/drivers/pinctrl/cix/pinctrl-sky1.c
-@@ -1,494 +1,437 @@
+@@ -1,494 +1,441 @@
  // SPDX-License-Identifier: GPL-2.0
 -//
 -// Author: Jerry Zhu <Jerry.Zhu@cixtech.com>
