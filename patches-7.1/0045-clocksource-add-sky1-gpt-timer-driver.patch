@@ -364,8 +364,8 @@ index 000000000000..111111111111
 +
 +	/* Acpi resource parse */
 +	sky1tm->base = devm_platform_ioremap_resource(pdev, 0);
-+	if (!sky1tm->base)
-+		return -ENXIO;
++	if (IS_ERR(sky1tm->base))
++		return PTR_ERR(sky1tm->base);
 +
 +	sky1tm->irq = platform_get_irq(pdev, 0);
 +	if (sky1tm->irq <= 0)
