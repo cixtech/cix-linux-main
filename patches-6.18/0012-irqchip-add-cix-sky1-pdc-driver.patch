@@ -267,10 +267,10 @@ index 000000000000..111111111111
 +	raw_spin_lock_init(&cd->rlock);
 +	struct resource *res_dp = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 +	cd->pdc_base = devm_ioremap_resource(&pdev->dev, res_dp);
-+	if (!cd->pdc_base) {
++	if (IS_ERR(cd->pdc_base)) {
 +		pr_err("%pACPI: unable to map pdc registers\n", pdev);
 +		kfree(cd);
-+		return -ENOMEM;
++		return PTR_ERR(cd->pdc_base);
 +	}
 +
 +	domain = acpi_irq_create_hierarchy(0, PDC_MAX_IRQS, pdev->dev.fwnode,
