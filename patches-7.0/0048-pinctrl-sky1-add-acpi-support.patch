@@ -31,7 +31,7 @@ diff --git a/drivers/pinctrl/cix/pinctrl-sky1-base.c b/drivers/pinctrl/cix/pinct
 index 111111111111..222222222222 100644
 --- a/drivers/pinctrl/cix/pinctrl-sky1-base.c
 +++ b/drivers/pinctrl/cix/pinctrl-sky1-base.c
-@@ -1,503 +1,711 @@
+@@ -1,503 +1,715 @@
  // SPDX-License-Identifier: GPL-2.0+
  //
  // Author: Jerry Zhu <Jerry.Zhu@cixtech.com>
@@ -594,6 +594,9 @@ index 111111111111..222222222222 100644
  {
 -	return ARRAY_SIZE(sky1_gpio_functions);
 +	struct sky1_pinctrl *spctl = pinctrl_dev_get_drvdata(pctldev);
++
++	if (spctl->pin_regs[pin_id] == -1)
++		return -EINVAL;
 +	*config = readl(spctl->base + spctl->pin_regs[pin_id]);
 +
 +	return 0;
@@ -675,6 +678,7 @@ index 111111111111..222222222222 100644
 +
 +		name = pin_get_name(pctldev, pin_id);
 +		ret = sky1_pinconf_get(pctldev, pin_id, &config);
++		if (ret)
 +			return;
 +		seq_printf(s, "  %s: 0x%lx\n", name, config);
 +	}
