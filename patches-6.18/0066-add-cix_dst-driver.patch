@@ -12616,7 +12616,7 @@ index 000000000000..111111111111
 +	}
 +
 +	ddr_data = kzalloc(sizeof(*ddr_data), GFP_KERNEL);
-+	if (IS_ERR_OR_NULL(vaddr)) {
++	if (!ddr_data) {
 +		err = -ENOMEM;
 +		goto unmap;
 +	}

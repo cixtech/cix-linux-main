@@ -1183,10 +1183,9 @@ index 000000000000..111111111111
 +	}
 +
 +	u3phy->ref_clk = devm_clk_get(dev, "ref_clk");
-+	if (IS_ERR(u3phy->apb_clk)) {
-+		dev_err(dev, "phy apb clock not found\n");
-+		return PTR_ERR(u3phy->apb_clk);
-+	}
++	if (IS_ERR(u3phy->ref_clk)) {
++		dev_err(dev, "phy ref clock not found\n");
++		return PTR_ERR(u3phy->ref_clk);
 +
 +	u3phy->base = devm_platform_ioremap_resource(pdev, 0);
 +	if (IS_ERR(u3phy->base))
