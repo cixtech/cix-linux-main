@@ -6,8 +6,8 @@ Subject: irqchip: add cix sky1 pdc driver
 ---
  drivers/irqchip/Kconfig        |   8 +
  drivers/irqchip/Makefile       |   3 +-
- drivers/irqchip/irq-sky1-pdc.c | 271 ++++++++++
- 3 files changed, 281 insertions(+), 1 deletion(-)
+ drivers/irqchip/irq-sky1-pdc.c | 278 ++++++++++
+ 3 files changed, 288 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/irqchip/Kconfig b/drivers/irqchip/Kconfig
 index 111111111111..222222222222 100644
@@ -47,7 +47,7 @@ new file mode 100644
 index 000000000000..111111111111
 --- /dev/null
 +++ b/drivers/irqchip/irq-sky1-pdc.c
-@@ -0,0 +1,271 @@
+@@ -0,0 +1,278 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +
 +#include <linux/of_address.h>
@@ -257,6 +257,7 @@ index 000000000000..111111111111
 +{
 +	struct irq_domain *domain;
 +	struct pdcv1_irqchip_data *cd;
++	struct resource *res_dp;
 +
 +	cd = kzalloc(sizeof(struct pdcv1_irqchip_data), GFP_KERNEL);
 +	if (!cd) {
@@ -265,19 +266,25 @@ index 000000000000..111111111111
 +	}
 +
 +	raw_spin_lock_init(&cd->rlock);
-+	struct resource *res_dp = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-+	cd->pdc_base = devm_ioremap_resource(&pdev->dev, res_dp);
-+	if (IS_ERR(cd->pdc_base)) {
++	res_dp = platform_get_resource(pdev, IORESOURCE_MEM, 0);
++	if (!res_dp) {
++		kfree(cd);
++		return -ENODEV;
++	}
++
++	/* The PDC, reset controller and CRU share this register window. */
++	cd->pdc_base = devm_ioremap(&pdev->dev, res_dp->start,
++				    resource_size(res_dp));
++	if (!cd->pdc_base) {
 +		pr_err("%pACPI: unable to map pdc registers\n", pdev);
 +		kfree(cd);
-+		return PTR_ERR(cd->pdc_base);
++		return -ENOMEM;
 +	}
 +
 +	domain = acpi_irq_create_hierarchy(0, PDC_MAX_IRQS, pdev->dev.fwnode,
 +					   &pdcv1_irqchip_data_domain_ops, cd);
 +
 +	if (!domain) {
-+		iounmap(cd->pdc_base);
 +		kfree(cd);
 +		return -ENOMEM;
 +	}
@@ -321,4 +328,3 @@ index 000000000000..111111111111
 +MODULE_LICENSE("GPL v2");
 -- 
 Cixtech
-
