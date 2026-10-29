@@ -1,0 +1,219 @@
+name: Build kernel
+
+# Build every patches-X.Y directory against its kernel base and upload the
+# resulting Debian packages as workflow artifacts.
+#
+# The version list is discovered from the repository, not hardcoded: each
+# patches-X.Y is built against the linux-X.Y.y stable branch, or against
+# mainline when that branch does not exist (yet) - the vX.Y tag if released,
+# otherwise the newest vX.Y-rcN. Bumping a version only requires adding or
+# removing the patches-X.Y and config/config-X.Y.defconfig files, never
+# editing this workflow.
+#
+# Triggered by pull requests (any base branch) and by manual dispatch.
+# To test without opening a PR, push the branch and use "Run workflow".
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  ARCH: arm64
+  STABLE_REPO: https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+  MAINLINE_REPO: https://github.com/torvalds/linux.git
+
+jobs:
+  prepare:
+    name: Detect versions
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.versions.outputs.matrix }}
+    steps:
+      - name: Checkout patch set
+        uses: actions/checkout@v4
+
+      - name: Detect patches-X.Y directories
+        id: versions
+        run: |
+          shopt -s nullglob
+          entries=()
+          for dir in patches-*/; do
+            version="${dir#patches-}"
+            version="${version%/}"
+
+            if ! [[ "$version" =~ ^[0-9]+\.[0-9]+$ ]]; then
+              echo "::warning::$dir is not named patches-X.Y, skipping"
+              continue
+            fi
+
+            if [ ! -f "config/config-$version.defconfig" ]; then
+              echo "::error::config/config-$version.defconfig is missing"
+              exit 1
+            fi
+
+            # A stable branch means this line tracks stable updates
+            # (6.18 -> linux-6.18.y). A release without one yet is built
+            # from mainline: the vX.Y tag when released, otherwise the
+            # newest vX.Y-rcN (7.4 -> v7.4-rc3).
+            status=0
+            git ls-remote --exit-code --heads "$STABLE_REPO" \
+              "refs/heads/linux-$version.y" > /dev/null || status=$?
+            case "$status" in
+              0)
+                repo="$STABLE_REPO"; ref="linux-$version.y" ;;
+              2)
+                repo="$MAINLINE_REPO"
+                mapfile -t tags < <(
+                  git ls-remote --tags --refs "$MAINLINE_REPO" \
+                    "refs/tags/v$version" "refs/tags/v$version-rc*" \
+                    | awk '{print $2}' | sed 's|^refs/tags/||' | sort -V
+                )
+                if printf '%s\n' "${tags[@]}" | grep -qx "v$version"; then
+                  ref="v$version"
+                elif [ ${#tags[@]} -gt 0 ]; then
+                  ref="${tags[-1]}"
+                else
+                  echo "::error::no linux-$version.y branch and no v$version / v$version-rc* tag"
+                  exit 1
+                fi ;;
+              *)
+                echo "::error::git ls-remote failed for linux-$version.y (exit $status)"
+                exit 1 ;;
+            esac
+
+            echo "patches-$version -> $repo ($ref)"
+            entries+=("{\"version\":\"$version\",\"kernel_repo\":\"$repo\",\"kernel_ref\":\"$ref\"}")
+          done
+
+          if [ ${#entries[@]} -eq 0 ]; then
+            echo "::error::no patches-X.Y directory with a matching defconfig found"
+            exit 1
+          fi
+
+          matrix=$(printf '%s\n' "${entries[@]}" | jq -sc '{include: .}')
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "matrix: $matrix"
+
+  build:
+    name: Linux ${{ matrix.version }}
+    needs: prepare
+    # Native arm64 runner, so no cross toolchain is needed and bindeb-pkg
+    # produces arm64 packages directly. Forks of public repos get these
+    # runners for free; on a private fork switch to ubuntu-24.04 and add
+    # CROSS_COMPILE=aarch64-linux-gnu- to every make invocation.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+
+    steps:
+      - name: Checkout patch set
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/boost /opt/hostedtoolcache/CodeQL
+          sudo apt-get clean
+          df -h /
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential bc bison flex libelf-dev libssl-dev libncurses-dev \
+            dwarves rsync kmod cpio xz-utils zstd debhelper dpkg-dev fakeroot \
+            lsb-release
+
+      - name: Clone Linux ${{ matrix.kernel_ref }}
+        run: |
+          git clone --depth 1 --branch "${{ matrix.kernel_ref }}" \
+            "${{ matrix.kernel_repo }}" "$RUNNER_TEMP/linux"
+          git -C "$RUNNER_TEMP/linux" log -1 --format='base commit: %H (%s)'
+
+      - name: Apply patches
+        working-directory: ${{ runner.temp }}/linux
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # LC_ALL=C keeps the glob order stable: the default locale ignores
+          # '-' so "00170-foo.patch" would sort before "0017-bar.patch".
+          shopt -s nullglob
+          mapfile -t patches < <(
+            printf '%s\n' "$GITHUB_WORKSPACE/patches-${{ matrix.version }}"/*.patch | LC_ALL=C sort
+          )
+          echo "Applying ${#patches[@]} patches from patches-${{ matrix.version }}"
+          for p in "${patches[@]}"; do
+            if ! git am "$p"; then
+              echo "::error::Failed to apply $(basename "$p")"
+              git am --show-current-patch=diff | head -n 150
+              exit 1
+            fi
+          done
+
+      - name: Configure kernel
+        working-directory: ${{ runner.temp }}/linux
+        run: |
+          cp "$GITHUB_WORKSPACE/config/config-${{ matrix.version }}.defconfig" .config
+          make olddefconfig
+
+      - name: Build kernel
+        working-directory: ${{ runner.temp }}/linux
+        run: make -j"$(nproc)" Image dtbs modules
+
+      - name: Build Debian packages
+        working-directory: ${{ runner.temp }}/linux
+        # --no-check-builddeps: debian/control lists libssl-dev/gcc for the
+        # target arch, which the runner has only for its own architecture.
+        run: make -j"$(nproc)" bindeb-pkg DPKG_FLAGS=--no-check-builddeps
+
+      # bindeb-pkg also produces a -dbg package (debug info, ~1.2G for 6.18).
+      # It is not uploaded: it is rarely needed and call traces can be located
+      # without it.
+      - name: Upload Debian packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.version }}-debs
+          path: |
+            ${{ runner.temp }}/*.deb
+            !${{ runner.temp }}/*-dbg_*.deb
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+      - name: Write job summary
+        if: always()
+        run: |
+          {
+            echo "### Linux ${{ matrix.version }}"
+            echo
+            echo "- patches: \`patches-${{ matrix.version }}\`"
+            echo "- base: \`${{ matrix.kernel_ref }}\`"
+            if [ -d "$RUNNER_TEMP/linux/.git" ]; then
+              echo "- HEAD: \`$(git -C "$RUNNER_TEMP/linux" rev-parse --short HEAD 2>/dev/null || echo unknown)\`"
+            fi
+            echo
+            if compgen -G "$RUNNER_TEMP/*.deb" > /dev/null; then
+              echo "| Package | Size |"
+              echo "| --- | --- |"
+              for f in "$RUNNER_TEMP"/*.deb; do
+                case "$(basename "$f")" in
+                  *-dbg_*) continue ;;
+                esac
+                echo "| $(basename "$f") | $(du -h "$f" | cut -f1) |"
+              done
+              echo
+              echo "_The -dbg package is built but not uploaded._"
+            else
+              echo "No packages were produced."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
