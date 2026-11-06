@@ -1,0 +1,72 @@
+From e88470a88e8f1487224b8c25300b6d379ca69d6d Mon Sep 17 00:00:00 2001
+From: Nathaniel McCallum <nathaniel@mccallum.life>
+Date: Sat, 20 Jun 2026 12:17:24 -0400
+Subject: [PATCH] usb: cdns3: cdnsp-sky1: quiesce host before gating clocks on
+ shutdown
+
+cdnsp_sky1_shutdown() asserted the controller/PHY resets and gated the
+USB clocks directly, without first tearing down the child xHCI host. That
+leaves the xHCI host and any attached USB devices live above a now
+clock-gated controller. If a device is still running asynchronous error
+recovery when the clocks are gated (for example a mass-storage device
+whose port is being reset), the recovery path touches xHCI registers on
+the gated controller and raises a fatal asynchronous SError, hanging the
+shutdown/reboot.
+
+Drop the bespoke ->shutdown() and point it at the existing ->remove()
+callback, which calls of_platform_depopulate() to remove the xHCI host
+(and so disconnect its devices and stop their async work) before
+deasserting the resets and gating the clocks. This is the same ordering
+the ->remove() and PM ->suspend() paths already rely on.
+
+Reusing ->remove() for ->shutdown() is an established pattern for USB
+dual-role / glue drivers in mainline, for example:
+
+  - dwc3-qcom:    .shutdown = dwc3_qcom_remove
+                  (drivers/usb/dwc3/dwc3-qcom.c)
+  - dwc3-xilinx:  .shutdown = dwc3_xlnx_remove
+                  (drivers/usb/dwc3/dwc3-xilinx.c)
+  - chipidea/imx: ci_hdrc_imx_shutdown() -> ci_hdrc_imx_remove()
+                  (drivers/usb/chipidea/ci_hdrc_imx.c)
+
+Signed-off-by: Nathaniel McCallum <nathaniel@mccallum.life>
+---
+ drivers/usb/cdns3/cdnsp-sky1.c | 15 +--------------
+ 1 file changed, 1 insertion(+), 14 deletions(-)
+
+diff --git a/drivers/usb/cdns3/cdnsp-sky1.c b/drivers/usb/cdns3/cdnsp-sky1.c
+index 9c95f1f5f..17cb85a49 100644
+--- a/drivers/usb/cdns3/cdnsp-sky1.c
++++ b/drivers/usb/cdns3/cdnsp-sky1.c
+@@ -869,19 +869,6 @@ static const struct acpi_device_id cdnsp_sky1_acpi_match[] = {
+ };
+ MODULE_DEVICE_TABLE(acpi, cdnsp_sky1_acpi_match);
+ 
+-static void cdnsp_sky1_shutdown(struct platform_device *pdev)
+-{
+-	struct device *dev = &pdev->dev;
+-	struct cdnsp_sky1 *data = dev_get_drvdata(dev);
+-
+-	if (!device_may_wakeup(dev)) {
+-		dev_dbg(dev, "at %s, reset controller\n", __func__);
+-		reset_control_assert(data->reset);
+-		reset_control_assert(data->preset);
+-		sky1_usb_clk_disable_all(dev);
+-	}
+-}
+-
+ static struct platform_driver cdnsp_sky1_driver = {
+ 	.probe		= cdnsp_sky1_probe,
+ 	.remove		= cdnsp_sky1_remove,
+@@ -891,7 +878,7 @@ static struct platform_driver cdnsp_sky1_driver = {
+ 		.acpi_match_table = ACPI_PTR(cdnsp_sky1_acpi_match),
+ 		.pm	= &cdnsp_sky1_pm_ops,
+ 	},
+-	.shutdown = cdnsp_sky1_shutdown,
++	.shutdown	= cdnsp_sky1_remove,
+ };
+ 
+ module_platform_driver(cdnsp_sky1_driver);
+-- 
+2.54.0
+
