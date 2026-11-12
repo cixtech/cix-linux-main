@@ -1,0 +1,48 @@
+From: O6N Kernel Builder <build@o6n.invalid>
+Subject: reset: build the Sky1 AUDSS reset driver
+
+patches-7.2/00062 adds drivers/reset/reset-sky1-audss.c without a Kconfig
+entry or a Makefile line. The 7.3 series edits that file in a tree which
+already has both, from the same block as patches-7.0/00060. Without them
+the CIXH6062 ACPI reset device has no driver, and the audio DMA, DSP, and
+I2S nodes stay unbound.
+
+---
+ drivers/reset/Kconfig  | 13 +++++++++++++
+ drivers/reset/Makefile |  1 +
+ 2 files changed, 14 insertions(+)
+
+diff --git a/drivers/reset/Kconfig b/drivers/reset/Kconfig
+--- a/drivers/reset/Kconfig
++++ b/drivers/reset/Kconfig
+@@ -300,6 +300,19 @@ config RESET_SKY1
+ 	help
+ 	  This enables the reset controller for Cix Sky1.
+ 
++config RESET_SKY1_AUDSS
++	tristate "Cix Sky1 Audio Subsystem reset controller"
++	depends on ARCH_CIX || COMPILE_TEST
++	select AUXILIARY_BUS
++	default CLK_SKY1_AUDSS
++	help
++	  Support for block-level software reset lines in the Cix Sky1
++	  Audio Subsystem (AUDSS) Clock and Reset Unit. Sixteen reset
++	  outputs for audio peripherals are controlled through the CRU
++	  register map. The driver binds as an auxiliary device from
++	  the AUDSS clock driver. Say M or Y here if you want to build
++	  this driver.
++
+ config RESET_SOCFPGA
+ 	bool "SoCFPGA Reset Driver" if COMPILE_TEST && (!ARM || !ARCH_INTEL_SOCFPGA)
+ 	default ARM && ARCH_INTEL_SOCFPGA
+diff --git a/drivers/reset/Makefile b/drivers/reset/Makefile
+--- a/drivers/reset/Makefile
++++ b/drivers/reset/Makefile
+@@ -39,6 +39,7 @@ obj-$(CONFIG_RESET_RZV2H_USB2PHY) += reset-rzv2h-usb2phy.o
+ obj-$(CONFIG_RESET_SCMI) += reset-scmi.o
+ obj-$(CONFIG_RESET_SIMPLE) += reset-simple.o
+ obj-$(CONFIG_RESET_SKY1) += reset-sky1.o
++obj-$(CONFIG_RESET_SKY1_AUDSS) += reset-sky1-audss.o
+ obj-$(CONFIG_RESET_SOCFPGA) += reset-socfpga.o
+ obj-$(CONFIG_RESET_SUNPLUS) += reset-sunplus.o
+ obj-$(CONFIG_RESET_SUNXI) += reset-sunxi.o
