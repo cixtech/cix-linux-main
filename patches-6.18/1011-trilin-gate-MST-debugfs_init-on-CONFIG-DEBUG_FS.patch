@@ -1,7 +1,7 @@
-From de7ab2ff9e2a48c0e0b064c47edc39c3c4b9d51c Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Daniel Steinhauf <daniel@steinhauf.eu>
 Date: Mon, 26 Oct 2026 20:14:37 +0100
-Subject: [PATCH] trilin: gate MST debugfs_init on CONFIG_DEBUG_FS
+Subject: [PATCH 92/92] trilin: gate MST debugfs_init on CONFIG_DEBUG_FS
 
 The function lives under #ifdef CONFIG_DEBUG_FS in trilin_drm.c.
 Production arm64-cix turns DEBUG_FS off (ANSSI); MST still referenced
@@ -27,6 +27,3 @@ index a4f38a67b..9be24ff96 100644
  };
  
  static int trilin_dp_mst_get_modes(struct drm_connector *connector)
--- 
-2.50.1 (Apple Git-155)
-
