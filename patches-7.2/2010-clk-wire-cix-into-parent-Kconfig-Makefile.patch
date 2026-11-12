@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Daniel Steinhauf <daniel@steinhauf.eu>
+Date: Thu, 29 Oct 2026 19:40:00 +0100
+Subject: [PATCH 93/93] clk: wire cix into parent Kconfig/Makefile
+
+0005 creates drivers/clk/cix (CLK_SKY1_ACPI / clk-sky1-acpi, HID
+CIXHA010) but CIX's original 00052 only edited files that already
+existed in their tree. The parent source/obj-y lines never made it
+onto vanilla v7.2.9, so olddefconfig dropped the symbols, CIXHA010
+never bound, PCIe PHY deferred, and NVMe never appeared.
+
+Signed-off-by: Daniel Steinhauf <daniel@steinhauf.eu>
+---
+ drivers/clk/Kconfig  | 1 +
+ drivers/clk/Makefile | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/drivers/clk/Kconfig b/drivers/clk/Kconfig
+index 111111111..222222222 100644
+--- a/drivers/clk/Kconfig
++++ b/drivers/clk/Kconfig
+@@ -509,6 +509,7 @@
+ source "drivers/clk/analogbits/Kconfig"
+ source "drivers/clk/aspeed/Kconfig"
+ source "drivers/clk/bcm/Kconfig"
++source "drivers/clk/cix/Kconfig"
+ source "drivers/clk/eswin/Kconfig"
+ source "drivers/clk/hisilicon/Kconfig"
+ source "drivers/clk/imgtec/Kconfig"
+diff --git a/drivers/clk/Makefile b/drivers/clk/Makefile
+index 111111111..222222222 100644
+--- a/drivers/clk/Makefile
++++ b/drivers/clk/Makefile
+@@ -119,6 +119,7 @@
+ obj-$(CONFIG_ARC_PLAT_AXS10X)		+= axs10x/
+ obj-y					+= bcm/
+ obj-$(CONFIG_ARCH_BERLIN)		+= berlin/
++obj-$(CONFIG_ARCH_CIX)			+= cix/
+ obj-$(CONFIG_ARCH_DAVINCI)		+= davinci/
+ obj-$(CONFIG_COMMON_CLK_ESWIN)		+= eswin/
+ obj-$(CONFIG_ARCH_HISI)			+= hisilicon/
