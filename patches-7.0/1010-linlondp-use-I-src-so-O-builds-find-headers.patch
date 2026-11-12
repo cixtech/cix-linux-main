@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Daniel Steinhauf <daniel@steinhauf.eu>
+Date: Mon, 26 Oct 2026 18:17:13 +0100
+Subject: [PATCH 91/92] linlondp: use -I $(src) so O= builds find headers
+
+CIX 7.3 Makefile uses -I $(srctree)/$(src), which doubles the path when
+$(src) is already absolute (make O=). Same fix as the 7.2 port.
+
+Co-authored-by: Cursor <cursoragent@cursor.com>
+Signed-off-by: Daniel Steinhauf <daniel@steinhauf.eu>
+---
+ drivers/gpu/drm/cix/linlon-dp/Makefile | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/gpu/drm/cix/linlon-dp/Makefile b/drivers/gpu/drm/cix/linlon-dp/Makefile
+index 8b6991001..49f0a1657 100644
+--- a/drivers/gpu/drm/cix/linlon-dp/Makefile
++++ b/drivers/gpu/drm/cix/linlon-dp/Makefile
+@@ -1,8 +1,8 @@
+ # SPDX-License-Identifier: GPL-2.0
+ 
+ ccflags-y := \
+-    -I $(srctree)/$(src)/include \
+-    -I $(srctree)/$(src)
++    -I $(src)/include \
++    -I $(src)
+ 
+ linlon-dp-y := \
+     linlondp_drv.o \
