@@ -1,0 +1,185 @@
+From 6a7231ccbf1afc33dc769cdf607aa34475aa8837 Mon Sep 17 00:00:00 2001
+From: Daniel Steinhauf <daniel@steinhauf.eu>
+Date: Mon, 26 Oct 2026 14:30:00 +0100
+Subject: [PATCH 90/90] cix: skip missing Iomux pin groups and stub ACPI eDP
+
+Phase 1.1 leftovers vs vendor ACPI/DT. Orion Iomux.asl is board-specific
+(ACPI bring-up 4.3.4) and 4.3.5 leaves PWM/eDP pads at the UEFI setting.
+Generic ASL still names pinctrl_usb*, pinctrl_edp0, pinctrl_fch_pwm0 and
+I2S dbg groups that this board's Iomux does not define.
+
+pinctrl_get_group_selector() logged "does not have pin group" as an
+error. Look the group up quietly and skip the map. CIXH5040 is always
+present; Port2 is the only eDP/DP phy (CP8180 brief / ACPI 3.2.8) and
+O6N firmware trims DPU2 (PcdDP2Enable), so a CIXH5040 node without
+bpc 6/8 is a stub -- do not instantiate a dummy panel.
+
+USBC1_DISABLE_USB3 / DPU2/DPU3 trim stay as firmware wrote them.
+Signed-off-by: Daniel Steinhauf <daniel@steinhauf.eu>
+---
+ drivers/gpu/drm/cix/dptx/cix_edp_panel.c | 24 ++++++++++---
+ drivers/pinctrl/cix/pinctrl-sky1-base.c  | 20 +++++++----
+ drivers/pinctrl/pinctrl-acpi.c           | 43 ++++++++++++++++++++++--
+ 3 files changed, 74 insertions(+), 13 deletions(-)
+
+diff --git a/drivers/gpu/drm/cix/dptx/cix_edp_panel.c b/drivers/gpu/drm/cix/dptx/cix_edp_panel.c
+index bc5d13fc7..081229c6c 100644
+--- a/drivers/gpu/drm/cix/dptx/cix_edp_panel.c
++++ b/drivers/gpu/drm/cix/dptx/cix_edp_panel.c
+@@ -834,10 +834,26 @@ static int cix_edp_panel_platform_probe(struct platform_device *pdev)
+ 		if (!d)
+ 			return -ENOMEM;
+ 
+-		err = cix_edp_panel_of_get_desc_data(dev, d);
+-		if (err) {
+-			dev_err(dev, "failed to get desc data: %d\n", err);
+-			return err;
++		if (has_acpi_companion(dev)) {
++			/*
++			 * CIXH5040 is always present. Port2 is the only
++			 * eDP/DP phy; when firmware trims DPU2
++			 * (PcdDP2Enable) the node has no bpc/timings.
++			 * Do not instantiate a dummy panel.
++			 */
++			device_property_read_u32(dev, "bpc", &d->bpc);
++			if (d->bpc != 6 && d->bpc != 8) {
++				dev_dbg(dev,
++					"ACPI eDP stub without panel (bpc=%u), skip\n",
++					d->bpc);
++				return 0;
++			}
++		} else {
++			err = cix_edp_panel_of_get_desc_data(dev, d);
++			if (err) {
++				dev_err(dev, "failed to get desc data: %d\n", err);
++				return err;
++			}
+ 		}
+ 	}
+ 
+diff --git a/drivers/pinctrl/cix/pinctrl-sky1-base.c b/drivers/pinctrl/cix/pinctrl-sky1-base.c
+index f8c2dffd8..433dea0d0 100644
+--- a/drivers/pinctrl/cix/pinctrl-sky1-base.c
++++ b/drivers/pinctrl/cix/pinctrl-sky1-base.c
+@@ -168,9 +168,13 @@ static int sky1_acpi_node_to_map(struct pinctrl_dev *pctldev,
+ 						  info->function.pins,
+ 						  info->function.npins);
+ 		if (!grp) {
+-			dev_err(pctldev->dev, "Pin group cannot be found\n");
+-			ret = -1;
+-			goto out_free;
++			dev_dbg(pctldev->dev,
++				"pin group not in Iomux, skip function %u\n",
++				function_selector);
++			kfree(new_map);
++			*map = NULL;
++			*num_maps_out = 0;
++			return 0;
+ 		}
+ 		new_map->type = PIN_MAP_TYPE_MUX_GROUP;
+ 		new_map->data.mux.group = grp;
+@@ -201,9 +205,13 @@ static int sky1_acpi_node_to_map(struct pinctrl_dev *pctldev,
+ 		function_selector = info->function.function_number;
+ 		grp = pinctrl_generic_get_group_name(pctldev, info->function.group_number);
+ 		if (!grp) {
+-			dev_err(pctldev->dev, "Pin group cannot be found\n");
+-			ret = -1;
+-			goto out_free;
++			dev_dbg(pctldev->dev,
++				"pin group %d not in Iomux, skip\n",
++				info->function.group_number);
++			kfree(new_map);
++			*map = NULL;
++			*num_maps_out = 0;
++			return 0;
+ 		}
+ 		new_map->type = PIN_MAP_TYPE_MUX_GROUP;
+ 		new_map->data.mux.group = grp;
+diff --git a/drivers/pinctrl/pinctrl-acpi.c b/drivers/pinctrl/pinctrl-acpi.c
+index 00b25deb2..2b82b1967 100644
+--- a/drivers/pinctrl/pinctrl-acpi.c
++++ b/drivers/pinctrl/pinctrl-acpi.c
+@@ -14,7 +14,9 @@
+ #include <linux/gpio/driver.h>
+ #include <linux/gpio/machine.h>
+ #include <linux/list.h>
++#include <linux/pinctrl/pinctrl.h>
+ #include <linux/slab.h>
++#include <linux/string.h>
+ 
+ #include "core.h"
+ #include "pinctrl-acpi.h"
+@@ -469,6 +471,35 @@ static int find_pin_group_cb(struct acpi_resource *ares, void *data)
+ 	return 1;
+ }
+ 
++/*
++ * Quiet group lookup. pinctrl_get_group_selector() logs an error when the
++ * group is absent; Orion Iomux.asl is board-specific and may omit groups
++ * that generic ASL still names (USB, eDP, PWM, I2S dbg). ACPI 4.3.5 also
++ * leaves those pads at the UEFI setting.
++ */
++static int acpi_find_pin_group_selector(struct pinctrl_dev *pctldev,
++					const char *pin_group)
++{
++	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
++	unsigned int group_selector = 0;
++	unsigned int ngroups;
++
++	if (!pctlops || !pctlops->get_groups_count || !pctlops->get_group_name)
++		return -EINVAL;
++
++	ngroups = pctlops->get_groups_count(pctldev);
++	while (group_selector < ngroups) {
++		const char *gname = pctlops->get_group_name(pctldev,
++							    group_selector);
++
++		if (gname && !strcmp(gname, pin_group))
++			return group_selector;
++		group_selector++;
++	}
++
++	return -ENOENT;
++}
++
+ static int get_pins_in_acpi_pin_group(struct acpi_device *adev,
+ 				      char *group_name, unsigned int **pins,
+ 				      size_t *npins)
+@@ -521,6 +552,10 @@ static int process_pin_group_config(struct pinctrl *p,
+ 	ret = get_pins_in_acpi_pin_group(adev, group, &pins, &npins);
+ 	if (ret < 0)
+ 		return ret;
++	if (!npins) {
++		dev_dbg(p->dev, "Iomux has no pin group '%s', skip\n", group);
++		return 0;
++	}
+ 
+ 	for (int i = 0; i < npins; i++) {
+ 		ret = add_to_config_map(config_maps, pinctrl_acpi, pins[i],
+@@ -539,7 +574,6 @@ process_pin_group_function(struct pinctrl *p,
+ 			   struct acpi_resource_pin_group_function *ares)
+ {
+ 	struct pinctrl_dev *pctl_dev;
+-	struct acpi_device *adev;
+ 	char *pinctrl_acpi;
+ 	char *group;
+ 	int ret;
+@@ -556,10 +590,13 @@ process_pin_group_function(struct pinctrl *p,
+ 		return -ENXIO;
+ 	}
+ 
+-	adev = ACPI_COMPANION(pctl_dev->dev);
+ 	if (ares->vendor_length > 0)
+ 		state_index = ares->vendor_data[0];
+-	gs = pinctrl_get_group_selector(pctl_dev, group);
++	gs = acpi_find_pin_group_selector(pctl_dev, group);
++	if (gs < 0) {
++		dev_dbg(p->dev, "Iomux has no pin group '%s', skip\n", group);
++		return 0;
++	}
+ 	ret = acpi_pin_group_function_to_pinctrl_map(p, pinctrl_acpi,
+ 						     gs,
+ 						     ares->function_number,
+-- 
+2.50.1 (Apple Git-155)
+
