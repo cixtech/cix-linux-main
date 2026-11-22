@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Daniel Steinhauf <daniel@steinhauf.eu>
+Date: Mon, 26 Oct 2026 20:14:37 +0100
+Subject: [PATCH 92/92] trilin: gate MST debugfs_init on CONFIG_DEBUG_FS
+
+The function lives under #ifdef CONFIG_DEBUG_FS in trilin_drm.c.
+Production arm64-cix turns DEBUG_FS off (ANSSI); MST still referenced
+it and modpost failed on trilin-dpsub.ko.
+
+Co-authored-by: Cursor <cursoragent@cursor.com>
+Signed-off-by: Daniel Steinhauf <daniel@steinhauf.eu>
+---
+ drivers/gpu/drm/cix/dptx/trilin_drm_mst.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/gpu/drm/cix/dptx/trilin_drm_mst.c b/drivers/gpu/drm/cix/dptx/trilin_drm_mst.c
+index a4f38a67b..9be24ff96 100644
+--- a/drivers/gpu/drm/cix/dptx/trilin_drm_mst.c
++++ b/drivers/gpu/drm/cix/dptx/trilin_drm_mst.c
+@@ -381,7 +381,9 @@ static const struct drm_connector_funcs trilin_dp_mst_connector_funcs = {
+ 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+ 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+ 	.reset = trilin_dp_connector_reset,
++#ifdef CONFIG_DEBUG_FS
+ 	.debugfs_init = trilin_dp_connector_debugfs_init,
++#endif
+ };
+ 
+ static int trilin_dp_mst_get_modes(struct drm_connector *connector)
