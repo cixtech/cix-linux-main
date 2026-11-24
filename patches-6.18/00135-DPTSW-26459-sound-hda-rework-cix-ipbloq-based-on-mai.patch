@@ -18,9 +18,9 @@ index 111111111111..222222222222 100644
 --- a/sound/hda/codecs/realtek/alc269.c
 +++ b/sound/hda/codecs/realtek/alc269.c
 @@ -3998,6 +3998,13 @@ enum {
- 	ALC269_FIXUP_POSITIVO_P15X_HEADSET_MIC,
  	ALC289_FIXUP_ASUS_ZEPHYRUS_DUAL_SPK,
  	ALC256_FIXUP_VAIO_RPL_MIC_NO_PRESENCE,
+ 	ALC245_FIXUP_ACER_MICMUTE_LED,
 +	ALC256_FIXUP_CIX_SKY1_EVB,
 +	ALC256_FIXUP_CIX_SKY1_EVB_COEF,
 +	ALC256_FIXUP_CIX_SKY1_ORION_O6,
@@ -32,7 +32,7 @@ index 111111111111..222222222222 100644
  
  /* A special fixup for Lenovo C940 and Yoga Duet 7;
 @@ -4034,6 +4041,107 @@ static void alc287_fixup_lenovo_yoga_book_9i(struct hda_codec *codec,
- 	__snd_hda_apply_fixup(codec, id, action, 0);
+ 	snd_hda_sequence_write(codec, legion_amp_verbs);
  }
  
 +/*
@@ -140,9 +140,9 @@ index 111111111111..222222222222 100644
  	[ALC233_FIXUP_WUJIE_SPEAKERS] = {
  		.type = HDA_FIXUP_PINS,
 @@ -6533,6 +6641,79 @@ static const struct hda_fixup alc269_fixups[] = {
- 		},
+ 		.v.func = alc285_fixup_hp_coef_micmute_led,
  		.chained = true,
- 		.chain_id = ALC269_FIXUP_LIMIT_INT_MIC_BOOST
+ 		.chain_id = ALC2XX_FIXUP_HEADSET_MIC,
 +	},
 +	/* CIX Sky1 boards: model-name matched (cix,model), shared codec SSID. */
 +	[ALC256_FIXUP_CIX_SKY1_EVB] = {

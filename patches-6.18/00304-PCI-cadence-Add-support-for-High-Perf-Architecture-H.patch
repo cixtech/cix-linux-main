@@ -789,8 +789,8 @@ index 111111111111..222222222222 100644
 --- a/drivers/pci/controller/cadence/pcie-cadence-plat.c
 +++ b/drivers/pci/controller/cadence/pcie-cadence-plat.c
 @@ -22,10 +22,6 @@ struct cdns_plat_pcie {
- 	struct cdns_pcie        *pcie;
- };
+ 
+ #define CDNS_PLAT_CPU_TO_BUS_ADDR	0x0FFFFFFF
  
 -struct cdns_plat_pcie_of_data {
 -	bool is_rc;
