@@ -3,15 +3,20 @@ From: Jianfeng Liu <Jianfeng.Liu@cixtech.com>
 Date: Sat, 9 May 2026 17:09:37 +0800
 Subject: regulator: add acpi support
 
+PRP0001 fixed regulators have no of_node and are named "PRP0001". The
+v6.18.65 probe guard rejects those platform devices before the fwnode
+config path runs, so Sky1 PCIe vcc-pcie-supply suppliers never bind.
+Allow an ACPI companion through, and still reject other non-DT devices
+whose platform_data is not a fixed_voltage_config.
 ---
  drivers/regulator/Makefile                 |   3 +-
  drivers/regulator/core.c                   |  92 +-
- drivers/regulator/fixed.c                  |  49 +
+ drivers/regulator/fixed.c                  |  58 +-
  drivers/regulator/fwnode_regulator.c       | 737 ++++++++++
  drivers/regulator/internal.h               |  10 +
  include/linux/regulator/driver.h           |   7 +
  include/linux/regulator/fwnode_regulator.h |  23 +
- 7 files changed, 911 insertions(+), 10 deletions(-)
+ 7 files changed, 919 insertions(+), 11 deletions(-)
 
 diff --git a/drivers/regulator/Makefile b/drivers/regulator/Makefile
 index 111111111111..222222222222 100644
@@ -247,7 +252,22 @@ index 111111111111..222222222222 100644
  static const struct regulator_ops fixed_voltage_ops = {
  };
  
-@@ -239,6 +282,11 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
+@@ -230,6 +273,13 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
+ 	enum gpiod_flags gflags;
+ 	int ret;
+ 
+-	if (!pdev->dev.of_node && strcmp(pdev->name, "reg-fixed-voltage"))
++	/*
++	 * ACPI PRP0001 nodes (compatible "regulator-fixed") have no of_node
++	 * and are not named "reg-fixed-voltage". Let them reach the fwnode
++	 * config path below. Anything else must still be the legacy platform
++	 * device, so its platform_data is not misread as fixed_voltage_config.
++	 */
++	if (!pdev->dev.of_node && !has_acpi_companion(&pdev->dev) &&
++	    strcmp(pdev->name, "reg-fixed-voltage"))
+ 		return -ENODEV;
+ 
+@@ -239,6 +289,11 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
  						     &drvdata->desc);
  		if (IS_ERR(config))
  			return PTR_ERR(config);
@@ -259,7 +279,7 @@ index 111111111111..222222222222 100644
  	} else {
  		config = dev_get_platdata(&pdev->dev);
  	}
-@@ -327,6 +375,7 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
+@@ -327,6 +382,7 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
  	cfg.init_data = config->init_data;
  	cfg.driver_data = drvdata;
  	cfg.of_node = pdev->dev.of_node;
