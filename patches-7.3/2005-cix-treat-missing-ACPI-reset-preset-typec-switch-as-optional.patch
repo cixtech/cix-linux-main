@@ -1,0 +1,120 @@
+From bb2d834d36e1986d112277b7d45ca890f6e63e6a Mon Sep 17 00:00:00 2001
+From: Daniel Steinhauf <daniel@steinhauf.eu>
+Date: Mon, 26 Oct 2026 12:20:00 +0100
+Subject: [PATCH 89/90] cix: treat missing ACPI reset/preset/typec switch as
+ optional
+
+Phase 1.1. Radxa Orion O6N ACPI may omit PeReset (0x00 = None), USB2
+PHY preset, and RTS5453 role-switch handles. Those are not fatal on
+this board: probe was aborting sky1-pcie.2 (-EINVAL) and spamming
+USB2 PHY / rts5453h. Keep -EPROBE_DEFER as a real failure.
+Signed-off-by: Daniel Steinhauf <daniel@steinhauf.eu>
+---
+ drivers/pci/controller/cadence/pci-sky1-cix.c | 28 ++++++++++++++-----
+ drivers/phy/cix/phy-cix-usb2.c                | 12 ++++----
+ drivers/usb/typec/rts5453.c                   |  4 +--
+ 3 files changed, 30 insertions(+), 14 deletions(-)
+
+diff --git a/drivers/pci/controller/cadence/pci-sky1-cix.c b/drivers/pci/controller/cadence/pci-sky1-cix.c
+index cb54ee99e..09a542a5a 100644
+--- a/drivers/pci/controller/cadence/pci-sky1-cix.c
++++ b/drivers/pci/controller/cadence/pci-sky1-cix.c
+@@ -1414,12 +1414,21 @@ static int sky1_pcie_parse_reset_gpio(struct sky1_pcie *pcie)
+ 
+ 	gpiodesc = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
+ 	if (IS_ERR(gpiodesc)) {
+-		dev_err(dev, "Failed to get reset gpio\n");
+-		return PTR_ERR(gpiodesc);
++		ret = PTR_ERR(gpiodesc);
++		/*
++		 * PeReset may be None (0x00). Some ACPI tables still emit a
++		 * dummy GpioIo, so optional lookup returns -EINVAL.
++		 */
++		if (ret == -ENOENT || ret == -EINVAL) {
++			dev_dbg(dev, "reset gpio not available (%d)\n", ret);
++			pcie->reset = NULL;
++			return 0;
++		}
++		return dev_err_probe(dev, ret, "failed to get reset gpio\n");
+ 	}
+ 	pcie->reset = gpiodesc;
+ 
+-	return ret;
++	return 0;
+ }
+ 
+ static int sky1_pcie_parse_wake_gpio(struct sky1_pcie *pcie)
+@@ -1508,14 +1517,19 @@ static int sky1_pcie_parse_reset_ctrl(struct sky1_pcie *pcie)
+ 	struct reset_control *rst;
+ 	int ret = 0;
+ 
+-	rst = devm_reset_control_get_exclusive(dev, "pcie_reset");
++	rst = devm_reset_control_get_optional_exclusive(dev, "pcie_reset");
+ 	if (IS_ERR(rst)) {
+-		dev_err(dev, "Failed to get reset gpio\n");
+-		return PTR_ERR(rst);
++		ret = PTR_ERR(rst);
++		if (ret == -ENOENT || ret == -EINVAL) {
++			dev_dbg(dev, "pcie_reset not available (%d)\n", ret);
++			pcie->rst = NULL;
++			return 0;
++		}
++		return dev_err_probe(dev, ret, "failed to get pcie_reset\n");
+ 	}
+ 	pcie->rst = rst;
+ 
+-	return ret;
++	return 0;
+ }
+ 
+ static int sky1_pcie_parse_local_irq(struct sky1_pcie *pcie)
+diff --git a/drivers/phy/cix/phy-cix-usb2.c b/drivers/phy/cix/phy-cix-usb2.c
+index 5757d543f..f24164eda 100644
+--- a/drivers/phy/cix/phy-cix-usb2.c
++++ b/drivers/phy/cix/phy-cix-usb2.c
+@@ -30,13 +30,15 @@ static int cix_usb2phy_probe(struct platform_device *pdev)
+ 	struct device *dev = &pdev->dev;
+ 	struct reset_control *preset;
+ 
+-	preset = devm_reset_control_get(dev, "preset");
++	preset = devm_reset_control_get_optional(dev, "preset");
++	if (IS_ERR(preset))
++		return dev_err_probe(dev, PTR_ERR(preset),
++				     "failed to get preset\n");
+ 
+-	if (IS_ERR(preset)) {
+-		dev_err(dev, "%s: failed to get preset\n", __func__);
+-	} else {
++	if (preset)
+ 		reset_control_deassert(preset);
+-	}
++	else
++		dev_dbg(dev, "preset reset not provided\n");
+ 
+ 	return 0;
+ }
+diff --git a/drivers/usb/typec/rts5453.c b/drivers/usb/typec/rts5453.c
+index f5d8c87ba..b0b1a2f92 100644
+--- a/drivers/usb/typec/rts5453.c
++++ b/drivers/usb/typec/rts5453.c
+@@ -391,7 +391,7 @@ static int rts5453h_typec_get_switch_handles(struct rts5453h *typec,
+ 	typec->ori_sw = typec->port->sw;
+ 	typec->role_sw = fwnode_usb_role_switch_get(fwnode);
+ 	if (IS_ERR(typec->role_sw))
+-		return dev_err_probe(dev, PTR_ERR(typec->role_sw), "USB role switch handle is error\n");
++		typec->role_sw = NULL;
+ 
+ 	if (!typec->role_sw || !typec->mux || !typec->ori_sw)
+ 		dev_warn(dev, "mux or switch or role switch has not found\n");
+@@ -483,7 +483,7 @@ static int rts5453h_init_ports(struct rts5453h *typec)
+ 
+ 		ret = rts5453h_typec_get_switch_handles(typec, fwnode, dev);
+ 		if (ret) {
+-			dev_err(dev, "No switch control for port \n");
++			dev_err(dev, "No switch control for port\n");
+ 			goto unregister_ports;
+ 		}
+ 	}
+-- 
+2.50.1 (Apple Git-155)
+
