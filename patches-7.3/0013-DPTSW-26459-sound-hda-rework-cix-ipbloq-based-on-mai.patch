@@ -135,9 +135,9 @@ index 111111111111..222222222222 100644
 +		snd_hda_sequence_write(codec, alc269_cix_orapi_6p_amp_verbs);
 +}
 +
- static const struct hda_fixup alc269_fixups[] = {
- 	[ALC298_FIXUP_RAZER_BLADE16_2025_PINS] = {
- 		.type = HDA_FIXUP_PINS,
+ static const struct hda_verb legion_amp_verbs[] = {
+ 	/* left speaker */
+ 	{ 0x20, AC_VERB_SET_COEF_INDEX, 0x24 },
 @@ -7174,6 +7282,79 @@ static const struct hda_fixup alc269_fixups[] = {
  		.chained = true,
  		.chain_id = ALC245_FIXUP_BASS_HP_DAC
